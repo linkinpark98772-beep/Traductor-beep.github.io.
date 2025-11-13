@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8"> <!-- CORREGIDO: Estaba como UTF-B -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traductor de YAML</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilos para el spinner de carga */
+        .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Ocultar el input de archivo, pero mantenerlo accesible */
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Contenedor Principal -->
+    <div class="w-full max-w-6xl mx-auto">
+
+        <!-- Logo/Título -->
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-white">Traductor YAML con IA</h1>
+            <p class="text-lg text-gray-400">Traduce tus archivos YAML manteniendo la estructura.</p>
+        </div>
+
+        <!-- Contenedor de Carga -->
+        <div id="loadingScreen" class="flex flex-col items-center justify-center p-10">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-600 h-12 w-12 mb-4"></div>
+            <p class="text-lg text-gray-400">Conectando con el servidor...</p>
+        </div>
+
+        <!-- Contenedor de Autenticación (Oculto al inicio) -->
+        <div id="authContainer" class="hidden w-full max-w-md mx-auto">
+            
+            <div id="authForms">
+                <!-- Formulario de Login -->
+                <div id="loginForm" class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <h2 class="text-2xl font-semibold text-center mb-4">Acceso de Usuario</h2>
+                    <form id="loginEmailForm">
+                        <div class="mb-4">
+                            <label for="loginEmail" class="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                            <input type="email" id="loginEmail" value="linkinpark98772@gmail.com" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="loginPassword" class="block text-sm font-medium text-gray-300 mb-2">Contraseña</label>
+                            <input type="password" id="loginPassword" value="Gears1204" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5">
+                            Ingresar
+                        </button>
+                    </form>
+                    <p class="text-sm text-center text-gray-400 mt-4">
+                        ¿No tienes cuenta? <a href="#" id="showRegister" class="font-medium text-blue-500 hover:underline">Regístrate aquí</a>
+                    </p>
+                </div>
+
+                <!-- Formulario de Registro (Oculto) -->
+                <div id="registerForm" class="hidden bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <h2 class="text-2xl font-semibold text-center mb-4">Crear Cuenta</h2>
+                    <form id="registerEmailForm">
+                        <div class="mb-4">
+                            <label for="registerEmail" class="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                            <input type="email" id="registerEmail" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="registerPassword" class="block text-sm font-medium text-gray-300 mb-2">Contraseña</label>
+                            <input type="password" id="registerPassword" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-800 font-medium rounded-lg text-sm px-5 py-2.5">
+                            Registrarse
+                        </button>
+                    </form>
+                    <p class="text-sm text-center text-gray-400 mt-4">
+                        ¿Ya tienes cuenta? <a href="#" id="showLogin" class="font-medium text-blue-500 hover:underline">Ingresa aquí</a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Mensaje de Estado (Errores/Éxito) -->
+            <div id="authStatus" class="mt-4 text-center"></div>
+
+            <!-- Contenido para No Autenticados (Planes, WhatsApp) -->
+            <div id="noAuthContent" class="mt-8">
+                <div class="text-center p-4 bg-gray-800 rounded-lg shadow-inner">
+                    <p class="text-lg mb-3">O compra tu acceso para usar la herramienta:</p>
+                    <a href="https://wa.me/529995529639?text=Hola,%20estoy%20interesado%20en%20comprar%20acceso%20al%20Traductor%20YAML." target="_blank" class="inline-flex items-center justify-center px-5 py-2.5 text-base font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-800">
+                        <i class="fab fa-whatsapp text-xl mr-2"></i>
+                        Contactar por WhatsApp
+                    </a>
+                </div>
+
+                <!-- Sección de Planes -->
+                <div class="mt-8">
+                    <h3 class="text-2xl font-semibold text-center mb-6">Elige tu Acceso</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        <!-- Plan Diario -->
+                        <div class="flex flex-col bg-gray-800 rounded-lg shadow-lg p-6 text-center border border-gray-700">
+                            <div class="flex-grow">
+                                <h4 class="text-xl font-medium mb-2">Diario</h4>
+                                <p class="text-3xl font-bold my-2">$3</p>
+                                <p class="text-sm text-gray-400">USD / 24 horas</p>
+                            </div>
+                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20DIARIO%20(%243%20USD%20/%2024%20horas)." target="_blank" class="mt-4 w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-4 py-2 text-center whitespace-nowrap">Comprar</a>
+                        </div>
+                        
+                        <!-- Plan Mensual (Popular) -->
+                        <div class="flex flex-col bg-gray-800 rounded-lg shadow-lg p-6 text-center border-2 border-blue-500 relative">
+                            <span class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</span>
+                            <div class="flex-grow">
+                                <h4 class="text-xl font-medium mb-2">Mensual</h4>
+                                <p class="text-3xl font-bold my-2">$13</p>
+                                <p class="text-sm text-gray-400">USD / 30 días</p>
+                            </div>
+                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20MENSUAL%20(%2413%20USD%20/%2030%20d%C3%ADas)." target="_blank" class="mt-4 w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-4 py-2 text-center whitespace-nowrap">Comprar</a>
+                        </div>
+                        
+                        <!-- Plan Trimestral -->
+                        <div class="flex flex-col bg-gray-800 rounded-lg shadow-lg p-6 text-center border border-gray-700">
+                            <div class="flex-grow">
+                                <h4 class="text-xl font-medium mb-2">Trimestral</h4>
+                                <p class="text-3xl font-bold my-2">$35</p>
+                                <p class="text-sm text-gray-400">USD / 3 meses</p>
+                            </div>
+                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20TRIMESTRAL%20(%2435%20USD%20/%203%20meses)." target="_blank" class="mt-4 w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-4 py-2 text-center whitespace-nowrap">Comprar</a>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenedor del Traductor (Oculto al inicio) -->
+        <div id="translatorContainer" class="hidden">
+            <!-- Botón de Cerrar Sesión -->
+            <div class="flex justify-end mb-4">
+                <button id="logoutButton" class="text-sm text-gray-400 hover:text-white hover:underline">Cerrar Sesión</button>
+            </div>
+
+            <!-- Área del Traductor -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                <div class="mb-4">
+                    <label for="targetLanguage" class="block text-sm font-medium text-gray-300 mb-2">Traducir a:</label>
+                    <select id="targetLanguage" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Inglés" selected>Inglés (English)</option>
+                        <option value="Español">Español (Spanish)</option>
+                        <option value="Francés">Francés (French)</option>
+                        <option value="Alemán">Alemán (German)</option>
+                        <option value="Japonés">Japonés (Japanese)</option>
+                        <option value="Chino">Chino (Chinese)</option>
+                        <option value="Portugués">Portugués (Portuguese)</option>
+                        <option value="Italiano">Italiano (Italian)</option>
+                        <option value="Ruso">Ruso (Russian)</option>
+                        <option value="Coreano">Coreano (Korean)</option>
+                        <option value="Árabe">Árabe (Arabic)</option>
+                    </select>
+                </div>
+
+                <button id="translateButton" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 mb-4 flex items-center justify-center">
+                    <i class="fas fa-magic mr-2"></i>
+                    <span id="translateButtonText">Traducir YAML</span>
+                    <div id="translateSpinner" class="hidden loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-5 w-5 ml-2"></div>
+                </button>
+
+                <!-- Mensaje de Estado del Traductor -->
+                <div id="translatorStatus" class="text-center my-2"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="inputYAML" class="block text-sm font-medium text-gray-300">YAML de Entrada</label>
+                            <label for="fileInput" class="cursor-pointer text-sm text-blue-400 hover:text-blue-300 bg-gray-700 px-3 py-1 rounded-lg hover:bg-gray-600">
+                                <i class="fas fa-upload mr-1"></i> Cargar
+                            </label>
+                            <input type="file" id="fileInput" accept=".yaml,.yml">
+                        </div>
+                        <textarea id="inputYAML" rows="15" class="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="Pega tu YAML aquí..."></textarea>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="outputYAML" class="block text-sm font-medium text-gray-300">YAML Traducido</label>
+                            <button id="downloadButton" class="text-sm text-blue-400 hover:text-blue-300 bg-gray-700 px-3 py-1 rounded-lg hover:bg-gray-600">
+                                <i class="fas fa-download mr-1"></i> Descargar
+                            </button>
+                        </div>
+                        <textarea id="outputYAML" rows="15" class="w-full p-3 bg-gray-900 rounded-lg border border-gray-600 font-mono text-sm" readonly placeholder="La traducción aparecerá aquí..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Administración (Oculto al inicio) -->
+        <div id="adminPanel" class="hidden bg-gray-800 p-6 rounded-lg shadow-xl">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="text-2xl font-semibold">Panel de Suscripción de Usuarios</h2>
+                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <button id="backToTranslatorButton" class="w-full sm:w-auto text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-800 font-medium rounded-lg text-sm px-5 py-2.5">
+                        Volver al Traductor
+                    </button>
+                    <button id="saveSubsButton" class="w-full sm:w-auto text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-800 font-medium rounded-lg text-sm px-5 py-2.5">
+                        Guardar Modificaciones
+                    </button>
+                </div>
+            </div>
+            <div id="adminStatus" class="text-sm text-center mb-4"></div>
+            
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="w-full min-w-[600px] text-left text-sm text-gray-300">
+                    <thead class="bg-gray-700 text-xs text-gray-400 uppercase">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Usuario (Email)</th>
+                            <th scope="col" class="px-6 py-3">Suscripción</th>
+                            <th scope="col" class="px-6 py-3">Vence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userSubscriptionsBody">
+                        <!-- Filas de usuarios se insertarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            setDoc,
+            getDoc,
+            collection,
+            onSnapshot,
+            serverTimestamp,
+            Timestamp
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuración de Firebase ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyAHvYYukSKORFNfVb0YJ8hLtZkubiEfpnQ",
+          authDomain: "traductor-6a674.firebaseapp.com",
+          projectId: "traductor-6a674",
+          storageBucket: "traductor-6a674.firebasestorage.app",
+          messagingSenderId: "433188401170",
+          appId: "1:433188401170:web:74c995a5c8bcf91b50e8cb",
+          measurementId: "G-Z4JR7N0XDK"
+        };
+        
+        const appId = "traductor-6a674"; 
+        const ADMIN_EMAIL = "linkinpark98772@gmail.com";
+
+        // --- Inicialización de Firebase ---
+        let app, auth, db;
+        let firebaseInitialized = false; 
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            firebaseInitialized = true; 
+        } catch (error) {
+            console.error("Error al inicializar Firebase:", error);
+            const loadingEl = document.getElementById("loadingScreen");
+            if (loadingEl) {
+                loadingEl.innerHTML = '<p class="text-red-400">Error al conectar con Firebase. Revisa la consola.</p>';
+            }
+        }
+
+        // --- Variables Globales ---
+        let userSubscriptionsListener = null;
+        let currentUserSubscriptionListener = null;
+        let pendingSubChanges = new Map(); 
+
+        // --- Referencias a Elementos del DOM ---
+        let loadingScreen, authContainer, translatorContainer, adminPanel, noAuthContent;
+        let loginForm, registerForm, loginEmailForm, registerEmailForm, showRegister, showLogin;
+        let authStatus, adminStatus, translatorStatus;
+        let translateButton, translateButtonText, translateSpinner, inputYAML, outputYAML, targetLanguage;
+        let logoutButton, saveSubsButton, backToTranslatorButton, userSubscriptionsBody;
+        let fileInput, downloadButton; 
+
+        // --- Lógica Principal de la Aplicación ---
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            if (!firebaseInitialized) {
+                console.error("Firebase no se inicializó. La aplicación no puede continuar.");
+                return; 
+            }
+
+            // Asignar todos los elementos del DOM
+            loadingScreen = document.getElementById('loadingScreen');
+            authContainer = document.getElementById('authContainer');
+            translatorContainer = document.getElementById('translatorContainer');
+            adminPanel = document.getElementById('adminPanel');
+            noAuthContent = document.getElementById('noAuthContent');
+            loginForm = document.getElementById('loginForm');
+            registerForm = document.getElementById('registerForm');
+            loginEmailForm = document.getElementById('loginEmailForm');
+            registerEmailForm = document.getElementById('registerEmailForm');
+            showRegister = document.getElementById('showRegister');
+            showLogin = document.getElementById('showLogin');
+            authStatus = document.getElementById('authStatus');
+            adminStatus = document.getElementById('adminStatus');
+            translatorStatus = document.getElementById('translatorStatus');
+            translateButton = document.getElementById('translateButton');
+            translateButtonText = document.getElementById('translateButtonText');
+            translateSpinner = document.getElementById('translateSpinner');
+            inputYAML = document.getElementById('inputYAML');
+            outputYAML = document.getElementById('outputYAML');
+            targetLanguage = document.getElementById('targetLanguage');
+            logoutButton = document.getElementById('logoutButton');
+            saveSubsButton = document.getElementById('saveSubsButton');
+            backToTranslatorButton = document.getElementById('backToTranslatorButton');
+            userSubscriptionsBody = document.getElementById('userSubscriptionsBody');
+            fileInput = document.getElementById('fileInput');
+            downloadButton = document.getElementById('downloadButton');
+
+            // --- Manejadores de Eventos ---
+            
+            showRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleAuthMode(false);
+            });
+            showLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleAuthMode(true);
+            });
+
+            loginEmailForm.addEventListener('submit', handleLogin);
+            registerEmailForm.addEventListener('submit', handleRegister);
+            
+            logoutButton.addEventListener('click', handleLogout);
+            translateButton.addEventListener('click', handleTranslate);
+            saveSubsButton.addEventListener('click', handleSaveSubscriptions);
+            backToTranslatorButton.addEventListener('click', handleAdminBackToTranslator);
+
+            fileInput.addEventListener('change', handleFileUpload);
+            downloadButton.addEventListener('click', handleFileDownload);
+
+            listenAuthState();
+        });
+
+        // --- Lógica de Carga/Descarga de Archivos ---
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            if (!file.name.endsWith('.yaml') && !file.name.endsWith('.yml')) {
+                showStatus(translatorStatus, "Por favor, selecciona un archivo .yaml o .yml", false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                inputYAML.value = e.target.result;
+                clearStatus(translatorStatus);
+            };
+            reader.onerror = () => {
+                showStatus(translatorStatus, "Error al leer el archivo.", false);
+            };
+            reader.readAsText(file);
+            event.target.value = null; // Resetear
+        }
+
+        function handleFileDownload() {
+            const text = outputYAML.value;
+            if (!text) {
+                showStatus(translatorStatus, "No hay nada que descargar.", false);
+                return;
+            }
+
+            const blob = new Blob([text], { type: 'text/yaml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'traduccion.yaml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Lógica de Vistas ---
+
+        function showView(view) {
+            loadingScreen.classList.add('hidden');
+            authContainer.classList.add('hidden');
+            translatorContainer.classList.add('hidden');
+            adminPanel.classList.add('hidden');
+            noAuthContent.classList.add('hidden'); 
+
+            if (view === 'loading') {
+                loadingScreen.classList.remove('hidden');
+            } else if (view === 'auth') {
+                authContainer.classList.remove('hidden');
+                noAuthContent.classList.remove('hidden'); 
+                toggleAuthMode(true); 
+            } else if (view === 'translator') {
+                translatorContainer.classList.remove('hidden');
+            } else if (view === 'admin') {
+                adminPanel.classList.remove('hidden');
+            }
+        }
+
+        function toggleAuthMode(showLoginView) {
+            if (showLoginView) {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+            }
+            clearStatus(authStatus);
+        }
+
+        // --- Lógica de Autenticación ---
+
+        function listenAuthState() {
+            onAuthStateChanged(auth, (user) => {
+                unsubscribeListeners();
+                if (user) {
+                    if (user.email === ADMIN_EMAIL) {
+                        showView('admin');
+                        loadUserSubscriptions();
+                    } else {
+                        showView('translator');
+                        listenToUserSubscription(user.uid);
+                    }
+                } else {
+                    showView('auth');
+                }
+            });
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            setLoading(e.submitter);
+            clearStatus(authStatus);
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showStatus(authStatus, 'Inicio de sesión exitoso. Redirigiendo...', true);
+            } catch (error) {
+                console.error("Error al iniciar sesión:", error.code);
+                showStatus(authStatus, getFirebaseAuthErrorMessage(error.code), false);
+            } finally {
+                setLoading(e.submitter, false);
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            setLoading(e.submitter);
+            clearStatus(authStatus);
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await ensureUserRecordExists(userCredential.user.uid, email);
+                showStatus(authStatus, 'Registro exitoso. Redirigiendo...', true);
+            } catch (error) {
+                console.error("Error al registrarse:", error.code);
+                showStatus(authStatus, getFirebaseAuthErrorMessage(error.code), false);
+            } finally {
+                setLoading(e.submitter, false);
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+            }
+        }
+
+        async function ensureUserRecordExists(userId, email) {
+            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
+            const userDocRef = doc(db, userSubCollection, userId);
+            try {
+                const docSnap = await getDoc(userDocRef);
+                if (!docSnap.exists()) {
+                    await setDoc(userDocRef, {
+                        email: email,
+                        subscription: 'None', 
+                        expiration_date: null
+                    });
+                }
+            } catch (error) {
+                console.error("Error ensuring user record exists:", error);
+                showStatus(authStatus, "Error al configurar la cuenta. Contacte al administrador.", false);
+            }
+        }
+
+        // --- Lógica del Panel de Administración ---
+
+        function loadUserSubscriptions() {
+            clearStatus(adminStatus);
+            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
+            const q = collection(db, userSubCollection);
+            userSubscriptionsListener = onSnapshot(q, (snapshot) => {
+                const users = [];
+                snapshot.forEach(doc => {
+                    users.push({ id: doc.id, ...doc.data() });
+                });
+                const changes = getPendingChanges();
+                renderUsers(users, changes);
+            }, (error) => {
+                console.error("Error fetching users:", error);
+                if (error.code === 'permission-denied') {
+                    showStatus(adminStatus, "Error: Permisos insuficientes para leer la lista de usuarios.", false);
+                } else {
+                    showStatus(adminStatus, "Error al cargar usuarios.", false);
+                }
+            });
+        }
+
+        function renderUsers(users, changes = {}) {
+            userSubscriptionsBody.innerHTML = ''; 
+            
+            // Usar datos simulados solo si la lista real está vacía
+            let displayUsers = users;
+            if (users.length === 0) {
+                displayUsers = mockUsers; 
+            }
+
+            displayUsers.forEach(user => {
+                if (user.email === ADMIN_EMAIL) return;
+                const expirationDate = user.expiration_date;
+                let expirationText = '---';
+                let isExpired = false;
+                if (expirationDate && expirationDate.seconds) {
+                    const jsDate = new Date(expirationDate.seconds * 1000);
+                    expirationText = jsDate.toLocaleString();
+                    if (jsDate < new Date()) {
+                        isExpired = true;
+                        expirationText += ' (¡EXPIRADA!)';
+                    }
+                }
+                const currentSubscription = changes[user.id] || user.subscription || 'None';
+                const row = document.createElement('tr');
+                row.className = `bg-gray-800 border-b border-gray-700 hover:bg-gray-700 ${isExpired ? 'opacity-60' : ''}`;
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium whitespace-nowrap">${user.email}</td>
+                    <td class="px-6 py-4">
+                        <select data-userid="${user.id}" class="sub-select bg-gray-600 rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="None" ${currentSubscription === 'None' ? 'selected' : ''}>Ninguna</option>
+                            <option value="Daily" ${currentSubscription === 'Daily' ? 'selected' : ''}>Diaria</option>
+                            <option value="Monthly" ${currentSubscription === 'Monthly' ? 'selected' : ''}>Mensual</option>
+                            <option value="Quarterly" ${currentSubscription === 'Quarterly' ? 'selected' : ''}>Trimestral</option>
+                        </select>
+                    </td>
+                    <td class="px-6 py-4 ${isExpired ? 'text-red-400 font-bold' : ''}">
+                        ${expirationText}
+                    </td>
+                `;
+                userSubscriptionsBody.appendChild(row);
+            });
+            document.querySelectorAll('.sub-select').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const userId = e.target.dataset.userid;
+                    const newSub = e.target.value;
+                    pendingSubChanges.set(userId, newSub); 
+                });
+            });
+        }
+
+        function getPendingChanges() {
+            const changes = {};
+            document.querySelectorAll('.sub-select').forEach(select => {
+                changes[select.dataset.userid] = select.value;
+            });
+            return changes;
+        }
+
+        async function handleSaveSubscriptions() {
+            setLoading(saveSubsButton);
+            clearStatus(adminStatus);
+            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
+            let updates = 0;
+            for (const [userId, subscription] of pendingSubChanges.entries()) {
+                // No intentar guardar cambios en usuarios simulados
+                if (userId.startsWith('mock')) continue;
+
+                const userDocRef = doc(db, userSubCollection, userId);
+                const { expirationDate, needsUpdate } = calculateExpirationDate(subscription);
+                try {
+                    if (needsUpdate) {
+                        await setDoc(userDocRef, { 
+                            subscription: subscription,
+                            expiration_date: expirationDate
+                        }, { merge: true });
+                        updates++;
+                    }
+                } catch (error) {
+                    console.error(`Error updating subscription for ${userId}:`, error);
+                    if (error.code === 'permission-denied') {
+                         showStatus(adminStatus, "Error: Permisos insuficientes para actualizar suscripciones.", false);
+                    } else {
+                        showStatus(adminStatus, "Error al guardar cambios.", false);
+                    }
+                    setLoading(saveSubsButton, false);
+                    return; 
+                }
+            }
+            setLoading(saveSubsButton, false);
+            if (updates > 0) {
+                showStatus(adminStatus, `Se guardaron ${updates} cambios exitosamente.`, true);
+            } else {
+                showStatus(adminStatus, "No hay cambios nuevos que guardar.", true);
+            }
+            pendingSubChanges.clear(); 
+        }
+
+        function calculateExpirationDate(subscription) {
+            let expirationDate = null;
+            let needsUpdate = true; 
+            const now = new Date();
+            switch (subscription) {
+                case 'Daily':
+                    now.setDate(now.getDate() + 1);
+                    expirationDate = Timestamp.fromDate(now);
+                    break;
+                case 'Monthly':
+                    now.setMonth(now.getMonth() + 1);
+                    expirationDate = Timestamp.fromDate(now);
+                    break;
+                case 'Quarterly':
+                    now.setMonth(now.getMonth() + 3);
+                    expirationDate = Timestamp.fromDate(now);
+                    break;
+                case 'None':
+                    expirationDate = null;
+                    break;
+                default:
+                    needsUpdate = false; 
+                    break;
+            }
+            return { expirationDate, needsUpdate };
+        }
+
+        function handleAdminBackToTranslator() {
+            unsubscribeListeners(); 
+            showView('translator');
+            listenToUserSubscription(auth.currentUser.uid); 
+        }
+
+        // --- Lógica del Traductor ---
+
+        let currentUserSubscription = { status: 'None', expiration: null };
+
+        function listenToUserSubscription(userId) {
+            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
+            const userDocRef = doc(db, userSubCollection, userId);
+            currentUserSubscriptionListener = onSnapshot(userDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    let { subscription, expiration_date } = data;
+                    if (expiration_date && expiration_date.seconds) {
+                        const jsDate = new Date(expiration_date.seconds * 1000);
+                        if (jsDate < new Date()) {
+                            subscription = 'None';
+                            setDoc(userDocRef, { 
+                                subscription: 'None',
+                                expiration_date: null
+                            }, { merge: true }).catch(err => console.error("Error al limpiar suscripción expirada:", err));
+                        }
+                    }
+                    currentUserSubscription.status = subscription;
+                    currentUserSubscription.expiration = expiration_date;
+                } else {
+                    currentUserSubscription.status = 'None';
+                    if(auth.currentUser && auth.currentUser.email !== ADMIN_EMAIL) {
+                        ensureUserRecordExists(userId, auth.currentUser.email);
+                    }
+                }
+            }, (error) => {
+                console.error("Error escuchando suscripción de usuario:", error);
+                currentUserSubscription.status = 'None';
+                if (error.code === 'permission-denied') {
+                    showStatus(translatorStatus, "Error: No se pudo verificar tu suscripción.", false);
+                }
+            });
+        }
+
+        async function handleTranslate() {
+            const input = inputYAML.value;
+            const lang = targetLanguage.value;
+            if (!input) {
+                showStatus(translatorStatus, "Por favor, ingresa texto YAML en el campo de entrada.", false);
+                return;
+            }
+            if (!lang) {
+                showStatus(translatorStatus, "Por favor, selecciona un idioma al que deseas traducir.", false);
+                return;
+            }
+            if (auth.currentUser.email !== ADMIN_EMAIL && currentUserSubscription.status === 'None') {
+                showStatus(translatorStatus, "Acceso denigado. Necesitas una suscripción activa (Diaria, Mensual o Trimestral) para traducir. Por favor, compra un plan.", false);
+                return;
+            }
+            setLoading(translateButton, true, 'Traduciendo...', 'translateSpinner');
+            clearStatus(translatorStatus);
+            outputYAML.value = '';
+
+            try {
+                // --- INICIO DE LA LLAMADA REAL A LA API DE GEMINI ---
+                
+                // 1. Definir los prompts (usando la instrucción específica del usuario)
+                const systemPrompt = `Por favor, traduce el siguiente archivo de configuración de un plugin de Minecraft al ${lang}. Mantén el formato YAML/Properties original, incluyendo las comillas, saltos de línea y códigos de color de Minecraft si los hubiera. Solo traduce el texto entre comillas o después de los dos puntos (:)`;
+                const userQuery = input;
+                
+                // 2. Configurar API (API key vacía según instrucciones)
+                const apiKey = ""; // Dejar vacío, será proporcionado por el entorno
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                // 3. Construir el payload
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                // 4. Implementar reintentos (Backoff exponencial)
+                let response;
+                let retries = 0;
+                const maxRetries = 5;
+                let delay = 1000;
+
+                while (retries < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.status === 429 || (response.status >= 500 && response.status <= 599)) {
+                            // Error de throttling o servidor, reintentar
+                            throw new Error(`API Error ${response.status}`);
+                        }
+                        
+                        if (!response.ok) {
+                            // Otro error, no reintentar (ej. 400 Bad Request)
+                             const errorResult = await response.json();
+                             console.error("Error en la API (no reintentable):", errorResult);
+                             throw new Error(`Error en la API (${response.status}): ${errorResult?.error?.message || response.statusText}`);
+                        }
+
+                        // Si la respuesta es OK, salir del bucle
+                        break; 
+
+                    } catch (error) {
+                        retries++;
+                        if (retries >= maxRetries) {
+                            throw new Error(`Se superó el número máximo de reintentos. Último error: ${error.message}`);
+                        }
+                        // No loguear los reintentos en la consola como errores
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2; // Backoff exponencial
+                    }
+                }
+
+                // 5. Procesar la respuesta exitosa
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    outputYAML.value = candidate.content.parts[0].text;
+                    showStatus(translatorStatus, "Traducción completada exitosamente.", true);
+                } else {
+                    console.warn("Respuesta de la API inesperada:", result);
+                    throw new Error("No se recibió una respuesta de texto válida de la IA.");
+                }
+                // --- FIN DE LA LLAMADA REAL A LA API DE GEMINI ---
+
+            } catch (error) {
+                console.error("Error en la traducción:", error);
+                showStatus(translatorStatus, `Error al traducir: ${error.message}. Por favor, inténtalo de nuevo.`, false);
+            } finally {
+                setLoading(translateButton, false, 'Traducir YAML', 'translateSpinner');
+            }
+        }
+        
+        // --- Funciones de Utilidad ---
+
+        function setLoading(button, isLoading = true, loadingText = 'Cargando...', spinnerId = null) {
+            if (!button) return;
+            const textEl = button.querySelector('span') || button;
+            const spinnerEl = spinnerId ? document.getElementById(spinnerId) : button.querySelector('div.loader');
+            if (isLoading) {
+                button.disabled = true;
+                if (textEl) textEl.textContent = loadingText;
+                if (spinnerEl) spinnerEl.classList.remove('hidden');
+            } else {
+                button.disabled = false;
+                if (textEl) textEl.textContent = button.dataset.defaultText || textEl.textContent; 
+                if (spinnerId) { 
+                     document.getElementById(spinnerId).classList.add('hidden');
+                     translateButtonText.textContent = "Traducir YAML";
+                }
+                if(spinnerEl && !spinnerId) spinnerEl.classList.add('hidden');
+            }
+            if (isLoading && !button.dataset.defaultText) {
+                button.dataset.defaultText = textEl.textContent;
+            }
+        }
+
+        function showStatus(element, message, isSuccess = false) {
+            if (!element) return;
+            element.classList.remove('text-green-400', 'text-red-400', 'text-gray-400');
+            const prefixMatch = message.match(/^(<strong>.*?:<\/strong>\s*)/);
+            let prefix = '';
+            let mainMessage = message;
+            if (prefixMatch) {
+                prefix = prefixMatch[1];
+                mainMessage = message.substring(prefix.length);
+            }
+            if (isSuccess) {
+                element.classList.add('text-green-400');
+                if (!prefix) prefix = '<strong>Éxito:</strong> ';
+            } else {
+                element.classList.add('text-red-400');
+                if (!prefix) prefix = '<strong>Error:</strong> ';
+            }
+            element.innerHTML = `${prefix}${mainMessage}`;
+            element.classList.remove('hidden');
+        }
+
+        function clearStatus(element) {
+            if (!element) return;
+            element.innerHTML = '';
+            element.classList.add('hidden');
+        }
+
+        function getFirebaseAuthErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/invalid-email':
+                    return 'El formato del correo electrónico no es válido.';
+                case 'auth/user-disabled':
+                    return 'Este usuario ha sido deshabilitado.';
+                case 'auth/user-not-found':
+                    return 'No se encontró ningún usuario con este correo electrónico.';
+                case 'auth/wrong-password':
+                    return 'La contraseña es incorrecta.';
+                case 'auth/email-already-in-use':
+                    return 'Este correo electrónico ya está en uso.';
+                case 'auth/weak-password':
+                    return 'La contraseña es demasiado débil (debe tener al menos 6 caracteres).';
+                case 'auth/invalid-credential':
+                    return 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.';
+                default:
+                    return 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.';
+            }
+        }
+
+        function unsubscribeListeners() {
+            if (userSubscriptionsListener) {
+                userSubscriptionsListener(); 
+                userSubscriptionsListener = null;
+            }
+            if (currentUserSubscriptionListener) {
+                currentUserSubscriptionListener(); 
+                currentUserSubscriptionListener = null;
+            }
+        }
+
+        const mockUsers = [
+            { id: 'mock1', email: 'usuario.ejemplo1@gmail.com', subscription: 'None', expiration_date: null },
+            { id: 'mock2', email: 'usuario.ejemplo2@dominio.com', subscription: 'Monthly', expiration_date: { seconds: Math.floor((new Date().setDate(new Date().getDate() + 15)) / 1000) } },
+            { id: 'mock3', email: 'usuario.ejemplo3@test.es', subscription: 'Daily', expiration_date: { seconds: Math.floor((new Date().setDate(new Date().getDate() - 1)) / 1000) } } 
+        ];
+
+    </script>
+</body>
+</html>
