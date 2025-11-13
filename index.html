@@ -1,152 +1,143 @@
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
-    <meta charset="UTF-8"> <!-- CORREGIDO: Estaba como UTF-B -->
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traductor de YAML</title>
+    <title>Traductor de Archivos YAML</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                },
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Estilos para el spinner de carga */
-        .loader {
-            border-top-color: #3498db;
-            animation: spin 1s linear infinite;
-        }
+        /* Estilo para el spinner de carga */
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        /* Ocultar el input de archivo, pero mantenerlo accesible */
-        #fileInput {
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        /* Estilo para textarea */
+        textarea {
+            font-family: monospace;
+        }
+        /* Ocultar el input de archivo por defecto */
+        #yamlFileInput {
             display: none;
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-900 text-gray-200 font-sans p-4 md:p-8">
 
-    <!-- Contenedor Principal -->
-    <div class="w-full max-w-6xl mx-auto">
+    <!-- Capa de Carga -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
+        <div class="spinner"></div>
+    </div>
 
-        <!-- Logo/Título -->
-        <div class="text-center mb-6">
-            <h1 class="text-4xl font-bold text-white">Traductor YAML con IA</h1>
-            <p class="text-lg text-gray-400">Traduce tus archivos YAML manteniendo la estructura.</p>
-        </div>
+    <div class="max-w-6xl mx-auto">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">Traductor de YAML</h1>
+            <p class="text-lg text-gray-400">Traduce tus archivos de configuración YAML a cualquier idioma.</p>
+        </header>
 
-        <!-- Contenedor de Carga -->
-        <div id="loadingScreen" class="flex flex-col items-center justify-center p-10">
-            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-600 h-12 w-12 mb-4"></div>
-            <p class="text-lg text-gray-400">Conectando con el servidor...</p>
-        </div>
+        <!-- Contenedor de Autenticación (Se muestra si no está logueado) -->
+        <div id="authContainer" class="hidden">
+            <div class="max-w-md mx-auto bg-gray-800 p-6 rounded-lg shadow-lg">
 
-        <!-- Contenedor de Autenticación (Oculto al inicio) -->
-        <div id="authContainer" class="hidden w-full max-w-md mx-auto">
-            
-            <div id="authForms">
-                <!-- Formulario de Login -->
-                <div id="loginForm" class="bg-gray-800 p-6 rounded-lg shadow-xl">
-                    <h2 class="text-2xl font-semibold text-center mb-4">Acceso de Usuario</h2>
-                    <form id="loginEmailForm">
-                        <div class="mb-4">
-                            <label for="loginEmail" class="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                            <input type="email" id="loginEmail" value="linkinpark98772@gmail.com" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <!-- Formularios de Login y Registro -->
+                <div id="authForms">
+                    <!-- Formulario de Login -->
+                    <form id="loginForm" class="space-y-4">
+                        <h2 class="text-2xl font-semibold text-center text-white">Acceso de Usuario</h2>
+                        <div>
+                            <label for="loginEmail" class="block text-sm font-medium text-gray-300">Correo Electrónico</label>
+                            <input type="email" id="loginEmail" placeholder="usuario@ejemplo.com" required class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-blue-500 focus:border-blue-500 p-3">
                         </div>
-                        <div class="mb-4">
-                            <label for="loginPassword" class="block text-sm font-medium text-gray-300 mb-2">Contraseña</label>
-                            <input type="password" id="loginPassword" value="Gears1204" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <div>
+                            <label for="loginPassword" class="block text-sm font-medium text-gray-300">Contraseña</label>
+                            <input type="password" id="loginPassword" placeholder="Tu contraseña" required class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-blue-500 focus:border-blue-500 p-3">
                         </div>
-                        <button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5">
+                        <button type="button" id="loginButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
                             Ingresar
                         </button>
+                        <p class="text-center text-sm text-gray-400">
+                            ¿No tienes cuenta? <a href="#" id="toggleToRegister" class="font-medium text-blue-400 hover:text-blue-300">Regístrate</a>
+                        </p>
                     </form>
-                    <p class="text-sm text-center text-gray-400 mt-4">
-                        ¿No tienes cuenta? <a href="#" id="showRegister" class="font-medium text-blue-500 hover:underline">Regístrate aquí</a>
-                    </p>
-                </div>
 
-                <!-- Formulario de Registro (Oculto) -->
-                <div id="registerForm" class="hidden bg-gray-800 p-6 rounded-lg shadow-xl">
-                    <h2 class="text-2xl font-semibold text-center mb-4">Crear Cuenta</h2>
-                    <form id="registerEmailForm">
-                        <div class="mb-4">
-                            <label for="registerEmail" class="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                            <input type="email" id="registerEmail" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <!-- Formulario de Registro -->
+                    <form id="registerForm" class="space-y-4 hidden">
+                        <h2 class="text-2xl font-semibold text-center text-white">Crear Cuenta</h2>
+                        <div>
+                            <label for="registerEmail" class="block text-sm font-medium text-gray-300">Correo Electrónico</label>
+                            <input type="email" id="registerEmail" placeholder="usuario@ejemplo.com" required class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-blue-500 focus:border-blue-500 p-3">
                         </div>
-                        <div class="mb-4">
-                            <label for="registerPassword" class="block text-sm font-medium text-gray-300 mb-2">Contraseña</label>
-                            <input type="password" id="registerPassword" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <div>
+                            <label for="registerPassword" class="block text-sm font-medium text-gray-300">Contraseña</label>
+                            <input type="password" id="registerPassword" placeholder="Crea una contraseña" required class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-blue-500 focus:border-blue-500 p-3">
                         </div>
-                        <button type="submit" class="w-full text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-800 font-medium rounded-lg text-sm px-5 py-2.5">
+                        <button type="button" id="registerButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
                             Registrarse
                         </button>
+                        <p class="text-center text-sm text-gray-400">
+                            ¿Ya tienes cuenta? <a href="#" id="toggleToLogin" class="font-medium text-blue-400 hover:text-blue-300">Ingresa</a>
+                        </p>
                     </form>
-                    <p class="text-sm text-center text-gray-400 mt-4">
-                        ¿Ya tienes cuenta? <a href="#" id="showLogin" class="font-medium text-blue-500 hover:underline">Ingresa aquí</a>
-                    </p>
                 </div>
             </div>
 
-            <!-- Mensaje de Estado (Errores/Éxito) -->
-            <div id="authStatus" class="mt-4 text-center"></div>
-
-            <!-- Contenido para No Autenticados (Planes, WhatsApp) -->
+            <!-- Contenido No Autenticado (Planes y WhatsApp) -->
             <div id="noAuthContent" class="mt-8">
-                <div class="text-center p-4 bg-gray-800 rounded-lg shadow-inner">
-                    <p class="text-lg mb-3">O compra tu acceso para usar la herramienta:</p>
-                    <a href="https://wa.me/529995529639?text=Hola,%20estoy%20interesado%20en%20comprar%20acceso%20al%20Traductor%20YAML." target="_blank" class="inline-flex items-center justify-center px-5 py-2.5 text-base font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-800">
-                        <i class="fab fa-whatsapp text-xl mr-2"></i>
+                <div class="text-center max-w-lg mx-auto mb-8">
+                    <p class="text-lg text-gray-300 mb-4">¿Aún no tienes acceso? Contacta por WhatsApp para activar tu plan.</p>
+                    <a href="https://wa.me/529995529639?text=Hola,%20me%20interesa%20comprar%20acceso%20para%20el%20traductor%20de%20YAML." target="_blank" class="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-lg shadow-md">
+                        <svg class="inline-block w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.35 3.4 16.86L2.04 21.96L7.31 20.65C8.75 21.39 10.36 21.82 12.04 21.82C17.5 21.82 21.95 17.37 21.95 11.91C21.95 6.45 17.5 2 12.04 2ZM17.23 15.26C16.98 15.89 15.99 16.44 15.54 16.5C15.1 16.56 14.12 16.3 12.1 15.31C10.74 14.7 9.14 13.08 8.78 12.68C8.42 12.28 7.37 10.97 7.37 9.87C7.37 8.77 7.97 8.22 8.27 7.92C8.57 7.62 8.92 7.5 9.18 7.5C9.43 7.5 9.68 7.5 9.88 7.5C10.08 7.5 10.36 8.16 10.51 8.41C10.67 8.66 10.82 9.06 10.67 9.26C10.51 9.46 10.41 9.61 10.21 9.81C10.01 10.01 9.83 10.19 9.68 10.34C9.53 10.49 9.38 10.67 9.53 10.92C9.68 11.17 10.18 11.87 10.83 12.47C11.66 13.22 12.31 13.52 12.61 13.67C12.91 13.82 13.11 13.77 13.31 13.57C13.51 13.37 13.86 12.92 14.11 12.62C14.41 12.27 14.71 12.22 15.06 12.32C15.41 12.42 16.5 12.97 16.75 13.22C17 13.47 17.15 13.62 17.2 13.82C17.25 14.02 17.25 14.64 17.23 15.26Z"/></svg>
                         Contactar por WhatsApp
                     </a>
                 </div>
 
-                <!-- Sección de Planes -->
-                <div class="mt-8">
-                    <h3 class="text-2xl font-semibold text-center mb-6">Elige tu Acceso</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Planes de Suscripción -->
+                <div class="max-w-4xl mx-auto">
+                    <h3 class="text-2xl font-semibold text-center text-white mb-6">Elige tu Acceso</h3>
+                    <div class="grid md:grid-cols-3 gap-6">
                         
                         <!-- Plan Diario -->
-                        <div class="flex flex-col bg-gray-800 rounded-lg shadow-lg p-6 text-center border border-gray-700">
+                        <div class="flex flex-col bg-gray-800 rounded-lg p-6 shadow-md border border-gray-700">
                             <div class="flex-grow">
-                                <h4 class="text-xl font-medium mb-2">Diario</h4>
-                                <p class="text-3xl font-bold my-2">$3</p>
-                                <p class="text-sm text-gray-400">USD / 24 horas</p>
+                                <h4 class="text-xl font-bold text-white mb-2">Diario</h4>
+                                <p class="text-4xl font-extrabold text-white mb-2">$3</p>
+                                <p class="text-gray-400 mb-4">USD / 24 horas</p>
                             </div>
-                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20DIARIO%20(%243%20USD%20/%2024%20horas)." target="_blank" class="mt-4 w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-4 py-2 text-center whitespace-nowrap">Comprar</a>
+                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20DIARIO%20($3%20USD%20/%2024%20horas)." target="_blank" class="whitespace-nowrap mt-4 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                                Comprar
+                            </a>
                         </div>
-                        
+
                         <!-- Plan Mensual (Popular) -->
-                        <div class="flex flex-col bg-gray-800 rounded-lg shadow-lg p-6 text-center border-2 border-blue-500 relative">
-                            <span class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</span>
+                        <div class="flex flex-col bg-gray-700 rounded-lg p-6 shadow-xl border-2 border-blue-500 relative">
+                            <span class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Popular</span>
                             <div class="flex-grow">
-                                <h4 class="text-xl font-medium mb-2">Mensual</h4>
-                                <p class="text-3xl font-bold my-2">$13</p>
-                                <p class="text-sm text-gray-400">USD / 30 días</p>
+                                <h4 class="text-xl font-bold text-white mb-2">Mensual</h4>
+                                <p class="text-4xl font-extrabold text-white mb-2">$13</p>
+                                <p class="text-gray-300 mb-4">USD / 30 días</p>
                             </div>
-                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20MENSUAL%20(%2413%20USD%20/%2030%20d%C3%ADas)." target="_blank" class="mt-4 w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-4 py-2 text-center whitespace-nowrap">Comprar</a>
+                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20MENSUAL%20($13%20USD%20/%2030%20d%C3%ADas)." target="_blank" class="whitespace-nowrap mt-4 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                                Comprar
+                            </a>
                         </div>
-                        
+
                         <!-- Plan Trimestral -->
-                        <div class="flex flex-col bg-gray-800 rounded-lg shadow-lg p-6 text-center border border-gray-700">
+                        <div class="flex flex-col bg-gray-800 rounded-lg p-6 shadow-md border border-gray-700">
                             <div class="flex-grow">
-                                <h4 class="text-xl font-medium mb-2">Trimestral</h4>
-                                <p class="text-3xl font-bold my-2">$35</p>
-                                <p class="text-sm text-gray-400">USD / 3 meses</p>
+                                <h4 class="text-xl font-bold text-white mb-2">Trimestral</h4>
+                                <p class="text-4xl font-extrabold text-white mb-2">$35</p>
+                                <p class="text-gray-400 mb-4">USD / 3 meses</p>
                             </div>
-                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20TRIMESTRAL%20(%2435%20USD%20/%203%20meses)." target="_blank" class="mt-4 w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-4 py-2 text-center whitespace-nowrap">Comprar</a>
+                            <a href="https://wa.me/529995529639?text=Hola,%20quiero%20comprar%20el%20plan%20TRIMESTRAL%20($35%20USD%20/%203%20meses)." target="_blank" class="whitespace-nowrap mt-4 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                                Comprar
+                            </a>
                         </div>
 
                     </div>
@@ -154,120 +145,128 @@
             </div>
         </div>
 
-        <!-- Contenedor del Traductor (Oculto al inicio) -->
+        <!-- Contenedor del Traductor (Se muestra si está logueado) -->
         <div id="translatorContainer" class="hidden">
-            <!-- Botón de Cerrar Sesión -->
             <div class="flex justify-end mb-4">
-                <button id="logoutButton" class="text-sm text-gray-400 hover:text-white hover:underline">Cerrar Sesión</button>
+                <button id="logoutButton" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                    Cerrar Sesión
+                </button>
             </div>
 
-            <!-- Área del Traductor -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
-                <div class="mb-4">
-                    <label for="targetLanguage" class="block text-sm font-medium text-gray-300 mb-2">Traducir a:</label>
-                    <select id="targetLanguage" class="w-full px-3 py-2 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="Inglés" selected>Inglés (English)</option>
-                        <option value="Español">Español (Spanish)</option>
-                        <option value="Francés">Francés (French)</option>
-                        <option value="Alemán">Alemán (German)</option>
-                        <option value="Japonés">Japonés (Japanese)</option>
-                        <option value="Chino">Chino (Chinese)</option>
-                        <option value="Portugués">Portugués (Portuguese)</option>
-                        <option value="Italiano">Italiano (Italian)</option>
-                        <option value="Ruso">Ruso (Russian)</option>
-                        <option value="Coreano">Coreano (Korean)</option>
-                        <option value="Árabe">Árabe (Arabic)</option>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- YAML de Entrada -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="inputYaml" class="text-lg font-semibold text-white">YAML de Entrada</label>
+                        <button id="uploadButton" title="Cargar archivo .yaml" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                            Cargar
+                        </button>
+                        <input type="file" id="yamlFileInput" accept=".yaml,.yml">
+                    </div>
+                    <textarea id="inputYaml" rows="15" class="w-full p-3 bg-gray-800 border border-gray-700 rounded-md shadow-inner text-gray-200 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <!-- YAML Traducido -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="outputYaml" class="text-lg font-semibold text-white">YAML Traducido</label>
+                        <button id="downloadButton" title="Descargar archivo .yaml" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                            Descargar
+                        </button>
+                    </div>
+                    <textarea id="outputYaml" rows="15" class="w-full p-3 bg-gray-800 border border-gray-700 rounded-md shadow-inner text-gray-200 focus:ring-blue-500 focus:border-blue-500" readonly></textarea>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-col md:flex-row items-center gap-4">
+                <div class="flex-grow w-full md:w-auto">
+                    <label for="targetLanguage" class="block text-sm font-medium text-gray-300">Traducir a:</label>
+                    <select id="targetLanguage" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-blue-500 focus:border-blue-500 p-3">
+                        <option>Español</option>
+                        <option>Inglés</option>
+                        <option>Francés</option>
+                        <option>Alemán</option>
+                        <option>Portugués</option>
+                        <option>Italiano</option>
+                        <option>Japonés</option>
+                        <option>Chino</option>
+                        <option>Ruso</option>
                     </select>
                 </div>
-
-                <button id="translateButton" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 mb-4 flex items-center justify-center">
-                    <i class="fas fa-magic mr-2"></i>
-                    <span id="translateButtonText">Traducir YAML</span>
-                    <div id="translateSpinner" class="hidden loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-5 w-5 ml-2"></div>
+                <button id="translateButton" class="w-full md:w-auto mt-2 md:mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 text-lg">
+                    Traducir
                 </button>
+            </div>
+        </div>
 
-                <!-- Mensaje de Estado del Traductor -->
-                <div id="translatorStatus" class="text-center my-2"></div>
+        <!-- Panel de Administrador (Se muestra si es admin) -->
+        <div id="adminPanel" class="hidden mt-8">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                    <h2 class="text-2xl font-bold text-white">Panel de Suscripción de Usuarios</h2>
+                    <div class="flex gap-2">
+                         <button id="adminBackButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                            Volver al Traductor
+                        </button>
+                        <button id="adminSaveButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                            Guardar Modificaciones
+                        </button>
+                    </div>
+                </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="inputYAML" class="block text-sm font-medium text-gray-300">YAML de Entrada</label>
-                            <label for="fileInput" class="cursor-pointer text-sm text-blue-400 hover:text-blue-300 bg-gray-700 px-3 py-1 rounded-lg hover:bg-gray-600">
-                                <i class="fas fa-upload mr-1"></i> Cargar
-                            </label>
-                            <input type="file" id="fileInput" accept=".yaml,.yml">
-                        </div>
-                        <textarea id="inputYAML" rows="15" class="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="Pega tu YAML aquí..."></textarea>
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="outputYAML" class="block text-sm font-medium text-gray-300">YAML Traducido</label>
-                            <button id="downloadButton" class="text-sm text-blue-400 hover:text-blue-300 bg-gray-700 px-3 py-1 rounded-lg hover:bg-gray-600">
-                                <i class="fas fa-download mr-1"></i> Descargar
-                            </button>
-                        </div>
-                        <textarea id="outputYAML" rows="15" class="w-full p-3 bg-gray-900 rounded-lg border border-gray-600 font-mono text-sm" readonly placeholder="La traducción aparecerá aquí..."></textarea>
-                    </div>
+                <p id="adminStatus" class="text-gray-400 mb-4">Cargando usuarios...</p>
+                <div class="overflow-x-auto rounded-lg border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Usuario (Email)</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Suscripción</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Vence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUserList" class="bg-gray-800 divide-y divide-gray-700">
+                            <!-- Filas de usuarios se insertarán aquí -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- Panel de Administración (Oculto al inicio) -->
-        <div id="adminPanel" class="hidden bg-gray-800 p-6 rounded-lg shadow-xl">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="text-2xl font-semibold">Panel de Suscripción de Usuarios</h2>
-                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <button id="backToTranslatorButton" class="w-full sm:w-auto text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-800 font-medium rounded-lg text-sm px-5 py-2.5">
-                        Volver al Traductor
-                    </button>
-                    <button id="saveSubsButton" class="w-full sm:w-auto text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-800 font-medium rounded-lg text-sm px-5 py-2.5">
-                        Guardar Modificaciones
-                    </button>
-                </div>
-            </div>
-            <div id="adminStatus" class="text-sm text-center mb-4"></div>
-            
-            <div class="overflow-x-auto rounded-lg border border-gray-700">
-                <table class="w-full min-w-[600px] text-left text-sm text-gray-300">
-                    <thead class="bg-gray-700 text-xs text-gray-400 uppercase">
-                        <tr>
-                            <th scope="col" class="px-6 py-3">Usuario (Email)</th>
-                            <th scope="col" class="px-6 py-3">Suscripción</th>
-                            <th scope="col" class="px-6 py-3">Vence</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userSubscriptionsBody">
-                        <!-- Filas de usuarios se insertarán aquí -->
-                    </tbody>
-                </table>
+    </div> <!-- Fin de max-w-6xl -->
+
+    <!-- Contenedor de Mensajes -->
+    <div id="messageBox" class="hidden fixed bottom-4 right-4 max-w-sm bg-gray-800 border-l-4 rounded-md shadow-lg p-4 z-50">
+        <div class="flex">
+            <div class="py-1">
+                <p class="font-bold" id="messageTitle">Mensaje</p>
+                <p class="text-sm" id="messageContent">Contenido del mensaje.</p>
             </div>
         </div>
-
     </div>
 
-    <!-- Firebase SDKs -->
+
+    <!-- Firebase y Lógica de la App -->
     <script type="module">
+        // Importaciones de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, 
-            signInWithEmailAndPassword,
-            createUserWithEmailAndPassword,
-            signOut,
-            onAuthStateChanged
+            onAuthStateChanged, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signOut 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import {
-            getFirestore,
-            doc,
-            setDoc,
-            getDoc,
-            collection,
-            onSnapshot,
-            serverTimestamp,
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc, 
+            collection, 
+            onSnapshot, 
             Timestamp
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Configuración de Firebase ---
+        // Configuración de Firebase
         const firebaseConfig = {
           apiKey: "AIzaSyAHvYYukSKORFNfVb0YJ8hLtZkubiEfpnQ",
           authDomain: "traductor-6a674.firebaseapp.com",
@@ -278,633 +277,594 @@
           measurementId: "G-Z4JR7N0XDK"
         };
         
-        const appId = "traductor-6a674"; 
+        const appId = firebaseConfig.appId || 'default-app-id';
         const ADMIN_EMAIL = "linkinpark98772@gmail.com";
 
-        // --- Inicialización de Firebase ---
-        let app, auth, db;
-        let firebaseInitialized = false; 
+        let app;
+        let auth;
+        let db;
+        let firebaseInitialized = false;
+
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            firebaseInitialized = true; 
+            firebaseInitialized = true;
         } catch (error) {
             console.error("Error al inicializar Firebase:", error);
-            const loadingEl = document.getElementById("loadingScreen");
-            if (loadingEl) {
-                loadingEl.innerHTML = '<p class="text-red-400">Error al conectar con Firebase. Revisa la consola.</p>';
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.innerHTML = "<p class='text-red-500 text-lg'>Error fatal: No se pudo conectar a Firebase.</p>";
             }
         }
 
-        // --- Variables Globales ---
-        let userSubscriptionsListener = null;
-        let currentUserSubscriptionListener = null;
-        let pendingSubChanges = new Map(); 
+        // -----------------------------------------------------------------
+        // INICIO DE LA LÓGICA DE LA APLICACIÓN
+        // -----------------------------------------------------------------
 
-        // --- Referencias a Elementos del DOM ---
-        let loadingScreen, authContainer, translatorContainer, adminPanel, noAuthContent;
-        let loginForm, registerForm, loginEmailForm, registerEmailForm, showRegister, showLogin;
-        let authStatus, adminStatus, translatorStatus;
-        let translateButton, translateButtonText, translateSpinner, inputYAML, outputYAML, targetLanguage;
-        let logoutButton, saveSubsButton, backToTranslatorButton, userSubscriptionsBody;
-        let fileInput, downloadButton; 
-
-        // --- Lógica Principal de la Aplicación ---
         document.addEventListener('DOMContentLoaded', () => {
             
+            // --- Declaración de Elementos del DOM ---
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const authContainer = document.getElementById('authContainer');
+            const authForms = document.getElementById('authForms');
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const noAuthContent = document.getElementById('noAuthContent');
+            const translatorContainer = document.getElementById('translatorContainer');
+            const adminPanel = document.getElementById('adminPanel');
+            const adminUserList = document.getElementById('adminUserList');
+            const adminStatus = document.getElementById('adminStatus');
+            const inputYaml = document.getElementById('inputYaml');
+            const outputYaml = document.getElementById('outputYaml');
+            const translateButton = document.getElementById('translateButton');
+            const yamlFileInput = document.getElementById('yamlFileInput');
+            const uploadButton = document.getElementById('uploadButton');
+            const downloadButton = document.getElementById('downloadButton');
+            const targetLanguage = document.getElementById('targetLanguage');
+            const messageBox = document.getElementById('messageBox');
+            const loginEmail = document.getElementById('loginEmail');
+            const loginPassword = document.getElementById('loginPassword');
+            const registerEmail = document.getElementById('registerEmail');
+            const registerPassword = document.getElementById('registerPassword');
+            const loginButton = document.getElementById('loginButton');
+            const registerButton = document.getElementById('registerButton');
+            const toggleToRegister = document.getElementById('toggleToRegister');
+            const toggleToLogin = document.getElementById('toggleToLogin');
+            const logoutButton = document.getElementById('logoutButton');
+            const adminSaveButton = document.getElementById('adminSaveButton');
+            const adminBackButton = document.getElementById('adminBackButton');
+
+            // --- Variables de Estado ---
+            let currentUserSubscription = 'None';
+            let userSubscriptionUnsubscribe = null;
+            let adminUserListUnsubscribe = null;
+            let pendingAdminChanges = {};
+            
             if (!firebaseInitialized) {
-                console.error("Firebase no se inicializó. La aplicación no puede continuar.");
-                return; 
-            }
-
-            // Asignar todos los elementos del DOM
-            loadingScreen = document.getElementById('loadingScreen');
-            authContainer = document.getElementById('authContainer');
-            translatorContainer = document.getElementById('translatorContainer');
-            adminPanel = document.getElementById('adminPanel');
-            noAuthContent = document.getElementById('noAuthContent');
-            loginForm = document.getElementById('loginForm');
-            registerForm = document.getElementById('registerForm');
-            loginEmailForm = document.getElementById('loginEmailForm');
-            registerEmailForm = document.getElementById('registerEmailForm');
-            showRegister = document.getElementById('showRegister');
-            showLogin = document.getElementById('showLogin');
-            authStatus = document.getElementById('authStatus');
-            adminStatus = document.getElementById('adminStatus');
-            translatorStatus = document.getElementById('translatorStatus');
-            translateButton = document.getElementById('translateButton');
-            translateButtonText = document.getElementById('translateButtonText');
-            translateSpinner = document.getElementById('translateSpinner');
-            inputYAML = document.getElementById('inputYAML');
-            outputYAML = document.getElementById('outputYAML');
-            targetLanguage = document.getElementById('targetLanguage');
-            logoutButton = document.getElementById('logoutButton');
-            saveSubsButton = document.getElementById('saveSubsButton');
-            backToTranslatorButton = document.getElementById('backToTranslatorButton');
-            userSubscriptionsBody = document.getElementById('userSubscriptionsBody');
-            fileInput = document.getElementById('fileInput');
-            downloadButton = document.getElementById('downloadButton');
-
-            // --- Manejadores de Eventos ---
-            
-            showRegister.addEventListener('click', (e) => {
-                e.preventDefault();
-                toggleAuthMode(false);
-            });
-            showLogin.addEventListener('click', (e) => {
-                e.preventDefault();
-                toggleAuthMode(true);
-            });
-
-            loginEmailForm.addEventListener('submit', handleLogin);
-            registerEmailForm.addEventListener('submit', handleRegister);
-            
-            logoutButton.addEventListener('click', handleLogout);
-            translateButton.addEventListener('click', handleTranslate);
-            saveSubsButton.addEventListener('click', handleSaveSubscriptions);
-            backToTranslatorButton.addEventListener('click', handleAdminBackToTranslator);
-
-            fileInput.addEventListener('change', handleFileUpload);
-            downloadButton.addEventListener('click', handleFileDownload);
-
-            listenAuthState();
-        });
-
-        // --- Lógica de Carga/Descarga de Archivos ---
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) {
-                return;
-            }
-            if (!file.name.endsWith('.yaml') && !file.name.endsWith('.yml')) {
-                showStatus(translatorStatus, "Por favor, selecciona un archivo .yaml o .yml", false);
+                showMessage('Error', 'No se pudo inicializar la aplicación. Revisa la consola.', 'error');
+                loadingOverlay.classList.add('hidden');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                inputYAML.value = e.target.result;
-                clearStatus(translatorStatus);
-            };
-            reader.onerror = () => {
-                showStatus(translatorStatus, "Error al leer el archivo.", false);
-            };
-            reader.readAsText(file);
-            event.target.value = null; // Resetear
-        }
-
-        function handleFileDownload() {
-            const text = outputYAML.value;
-            if (!text) {
-                showStatus(translatorStatus, "No hay nada que descargar.", false);
-                return;
-            }
-
-            const blob = new Blob([text], { type: 'text/yaml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'traduccion.yaml';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // --- Lógica de Vistas ---
-
-        function showView(view) {
-            loadingScreen.classList.add('hidden');
-            authContainer.classList.add('hidden');
-            translatorContainer.classList.add('hidden');
-            adminPanel.classList.add('hidden');
-            noAuthContent.classList.add('hidden'); 
-
-            if (view === 'loading') {
-                loadingScreen.classList.remove('hidden');
-            } else if (view === 'auth') {
-                authContainer.classList.remove('hidden');
-                noAuthContent.classList.remove('hidden'); 
-                toggleAuthMode(true); 
-            } else if (view === 'translator') {
-                translatorContainer.classList.remove('hidden');
-            } else if (view === 'admin') {
-                adminPanel.classList.remove('hidden');
-            }
-        }
-
-        function toggleAuthMode(showLoginView) {
-            if (showLoginView) {
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-            } else {
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-            }
-            clearStatus(authStatus);
-        }
-
-        // --- Lógica de Autenticación ---
-
-        function listenAuthState() {
+            // --- Lógica Principal de Autenticación ---
             onAuthStateChanged(auth, (user) => {
-                unsubscribeListeners();
+                loadingOverlay.classList.add('hidden');
+                
+                // Desvincular listeners anteriores
+                if (userSubscriptionUnsubscribe) userSubscriptionUnsubscribe();
+                if (adminUserListUnsubscribe) adminUserListUnsubscribe();
+
                 if (user) {
+                    // Usuario logueado
+                    authContainer.classList.add('hidden');
                     if (user.email === ADMIN_EMAIL) {
-                        showView('admin');
+                        // Es Administrador
+                        adminPanel.classList.remove('hidden');
+                        translatorContainer.classList.add('hidden');
                         loadUserSubscriptions();
                     } else {
-                        showView('translator');
+                        // Es Usuario Estándar
+                        adminPanel.classList.add('hidden');
+                        translatorContainer.classList.remove('hidden');
                         listenToUserSubscription(user.uid);
                     }
                 } else {
-                    showView('auth');
+                    // Usuario no logueado
+                    authContainer.classList.remove('hidden');
+                    translatorContainer.classList.add('hidden');
+                    adminPanel.classList.add('hidden');
+                    currentUserSubscription = 'None';
                 }
             });
-        }
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            setLoading(e.submitter);
-            clearStatus(authStatus);
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                showStatus(authStatus, 'Inicio de sesión exitoso. Redirigiendo...', true);
-            } catch (error) {
-                console.error("Error al iniciar sesión:", error.code);
-                showStatus(authStatus, getFirebaseAuthErrorMessage(error.code), false);
-            } finally {
-                setLoading(e.submitter, false);
-            }
-        }
+            // --- Funciones de Traducción (API de Gemini) ---
+            async function handleTranslate() {
+                const yamlInput = inputYaml.value;
+                const lang = targetLanguage.value;
 
-        async function handleRegister(e) {
-            e.preventDefault();
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            setLoading(e.submitter);
-            clearStatus(authStatus);
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                await ensureUserRecordExists(userCredential.user.uid, email);
-                showStatus(authStatus, 'Registro exitoso. Redirigiendo...', true);
-            } catch (error) {
-                console.error("Error al registrarse:", error.code);
-                showStatus(authStatus, getFirebaseAuthErrorMessage(error.code), false);
-            } finally {
-                setLoading(e.submitter, false);
-            }
-        }
-
-        async function handleLogout() {
-            try {
-                await signOut(auth);
-            } catch (error) {
-                console.error("Error al cerrar sesión:", error);
-            }
-        }
-
-        async function ensureUserRecordExists(userId, email) {
-            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
-            const userDocRef = doc(db, userSubCollection, userId);
-            try {
-                const docSnap = await getDoc(userDocRef);
-                if (!docSnap.exists()) {
-                    await setDoc(userDocRef, {
-                        email: email,
-                        subscription: 'None', 
-                        expiration_date: null
-                    });
+                if (!yamlInput) {
+                    showMessage('Error', 'El YAML de entrada no puede estar vacío.', 'error');
+                    return;
                 }
-            } catch (error) {
-                console.error("Error ensuring user record exists:", error);
-                showStatus(authStatus, "Error al configurar la cuenta. Contacte al administrador.", false);
-            }
-        }
 
-        // --- Lógica del Panel de Administración ---
-
-        function loadUserSubscriptions() {
-            clearStatus(adminStatus);
-            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
-            const q = collection(db, userSubCollection);
-            userSubscriptionsListener = onSnapshot(q, (snapshot) => {
-                const users = [];
-                snapshot.forEach(doc => {
-                    users.push({ id: doc.id, ...doc.data() });
-                });
-                const changes = getPendingChanges();
-                renderUsers(users, changes);
-            }, (error) => {
-                console.error("Error fetching users:", error);
-                if (error.code === 'permission-denied') {
-                    showStatus(adminStatus, "Error: Permisos insuficientes para leer la lista de usuarios.", false);
-                } else {
-                    showStatus(adminStatus, "Error al cargar usuarios.", false);
+                // Verificación de suscripción
+                if (currentUserSubscription === 'None') {
+                    showMessage('Acceso Denegado', 'Tu suscripción ha caducado o no está activa. Contacta al administrador.', 'error');
+                    return;
                 }
-            });
-        }
-
-        function renderUsers(users, changes = {}) {
-            userSubscriptionsBody.innerHTML = ''; 
-            
-            // Usar datos simulados solo si la lista real está vacía
-            let displayUsers = users;
-            if (users.length === 0) {
-                displayUsers = mockUsers; 
-            }
-
-            displayUsers.forEach(user => {
-                if (user.email === ADMIN_EMAIL) return;
-                const expirationDate = user.expiration_date;
-                let expirationText = '---';
-                let isExpired = false;
-                if (expirationDate && expirationDate.seconds) {
-                    const jsDate = new Date(expirationDate.seconds * 1000);
-                    expirationText = jsDate.toLocaleString();
-                    if (jsDate < new Date()) {
-                        isExpired = true;
-                        expirationText += ' (¡EXPIRADA!)';
-                    }
-                }
-                const currentSubscription = changes[user.id] || user.subscription || 'None';
-                const row = document.createElement('tr');
-                row.className = `bg-gray-800 border-b border-gray-700 hover:bg-gray-700 ${isExpired ? 'opacity-60' : ''}`;
-                row.innerHTML = `
-                    <td class="px-6 py-4 font-medium whitespace-nowrap">${user.email}</td>
-                    <td class="px-6 py-4">
-                        <select data-userid="${user.id}" class="sub-select bg-gray-600 rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="None" ${currentSubscription === 'None' ? 'selected' : ''}>Ninguna</option>
-                            <option value="Daily" ${currentSubscription === 'Daily' ? 'selected' : ''}>Diaria</option>
-                            <option value="Monthly" ${currentSubscription === 'Monthly' ? 'selected' : ''}>Mensual</option>
-                            <option value="Quarterly" ${currentSubscription === 'Quarterly' ? 'selected' : ''}>Trimestral</option>
-                        </select>
-                    </td>
-                    <td class="px-6 py-4 ${isExpired ? 'text-red-400 font-bold' : ''}">
-                        ${expirationText}
-                    </td>
-                `;
-                userSubscriptionsBody.appendChild(row);
-            });
-            document.querySelectorAll('.sub-select').forEach(select => {
-                select.addEventListener('change', (e) => {
-                    const userId = e.target.dataset.userid;
-                    const newSub = e.target.value;
-                    pendingSubChanges.set(userId, newSub); 
-                });
-            });
-        }
-
-        function getPendingChanges() {
-            const changes = {};
-            document.querySelectorAll('.sub-select').forEach(select => {
-                changes[select.dataset.userid] = select.value;
-            });
-            return changes;
-        }
-
-        async function handleSaveSubscriptions() {
-            setLoading(saveSubsButton);
-            clearStatus(adminStatus);
-            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
-            let updates = 0;
-            for (const [userId, subscription] of pendingSubChanges.entries()) {
-                // No intentar guardar cambios en usuarios simulados
-                if (userId.startsWith('mock')) continue;
-
-                const userDocRef = doc(db, userSubCollection, userId);
-                const { expirationDate, needsUpdate } = calculateExpirationDate(subscription);
-                try {
-                    if (needsUpdate) {
-                        await setDoc(userDocRef, { 
-                            subscription: subscription,
-                            expiration_date: expirationDate
-                        }, { merge: true });
-                        updates++;
-                    }
-                } catch (error) {
-                    console.error(`Error updating subscription for ${userId}:`, error);
-                    if (error.code === 'permission-denied') {
-                         showStatus(adminStatus, "Error: Permisos insuficientes para actualizar suscripciones.", false);
-                    } else {
-                        showStatus(adminStatus, "Error al guardar cambios.", false);
-                    }
-                    setLoading(saveSubsButton, false);
-                    return; 
-                }
-            }
-            setLoading(saveSubsButton, false);
-            if (updates > 0) {
-                showStatus(adminStatus, `Se guardaron ${updates} cambios exitosamente.`, true);
-            } else {
-                showStatus(adminStatus, "No hay cambios nuevos que guardar.", true);
-            }
-            pendingSubChanges.clear(); 
-        }
-
-        function calculateExpirationDate(subscription) {
-            let expirationDate = null;
-            let needsUpdate = true; 
-            const now = new Date();
-            switch (subscription) {
-                case 'Daily':
-                    now.setDate(now.getDate() + 1);
-                    expirationDate = Timestamp.fromDate(now);
-                    break;
-                case 'Monthly':
-                    now.setMonth(now.getMonth() + 1);
-                    expirationDate = Timestamp.fromDate(now);
-                    break;
-                case 'Quarterly':
-                    now.setMonth(now.getMonth() + 3);
-                    expirationDate = Timestamp.fromDate(now);
-                    break;
-                case 'None':
-                    expirationDate = null;
-                    break;
-                default:
-                    needsUpdate = false; 
-                    break;
-            }
-            return { expirationDate, needsUpdate };
-        }
-
-        function handleAdminBackToTranslator() {
-            unsubscribeListeners(); 
-            showView('translator');
-            listenToUserSubscription(auth.currentUser.uid); 
-        }
-
-        // --- Lógica del Traductor ---
-
-        let currentUserSubscription = { status: 'None', expiration: null };
-
-        function listenToUserSubscription(userId) {
-            const userSubCollection = `artifacts/${appId}/public/data/user_subscriptions`;
-            const userDocRef = doc(db, userSubCollection, userId);
-            currentUserSubscriptionListener = onSnapshot(userDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    let { subscription, expiration_date } = data;
-                    if (expiration_date && expiration_date.seconds) {
-                        const jsDate = new Date(expiration_date.seconds * 1000);
-                        if (jsDate < new Date()) {
-                            subscription = 'None';
-                            setDoc(userDocRef, { 
-                                subscription: 'None',
-                                expiration_date: null
-                            }, { merge: true }).catch(err => console.error("Error al limpiar suscripción expirada:", err));
-                        }
-                    }
-                    currentUserSubscription.status = subscription;
-                    currentUserSubscription.expiration = expiration_date;
-                } else {
-                    currentUserSubscription.status = 'None';
-                    if(auth.currentUser && auth.currentUser.email !== ADMIN_EMAIL) {
-                        ensureUserRecordExists(userId, auth.currentUser.email);
-                    }
-                }
-            }, (error) => {
-                console.error("Error escuchando suscripción de usuario:", error);
-                currentUserSubscription.status = 'None';
-                if (error.code === 'permission-denied') {
-                    showStatus(translatorStatus, "Error: No se pudo verificar tu suscripción.", false);
-                }
-            });
-        }
-
-        async function handleTranslate() {
-            const input = inputYAML.value;
-            const lang = targetLanguage.value;
-            if (!input) {
-                showStatus(translatorStatus, "Por favor, ingresa texto YAML en el campo de entrada.", false);
-                return;
-            }
-            if (!lang) {
-                showStatus(translatorStatus, "Por favor, selecciona un idioma al que deseas traducir.", false);
-                return;
-            }
-            if (auth.currentUser.email !== ADMIN_EMAIL && currentUserSubscription.status === 'None') {
-                showStatus(translatorStatus, "Acceso denigado. Necesitas una suscripción activa (Diaria, Mensual o Trimestral) para traducir. Por favor, compra un plan.", false);
-                return;
-            }
-            setLoading(translateButton, true, 'Traduciendo...', 'translateSpinner');
-            clearStatus(translatorStatus);
-            outputYAML.value = '';
-
-            try {
-                // --- INICIO DE LA LLAMADA REAL A LA API DE GEMINI ---
                 
-                // 1. Definir los prompts (usando la instrucción específica del usuario)
-                const systemPrompt = `Por favor, traduce el siguiente archivo de configuración de un plugin de Minecraft al ${lang}. Mantén el formato YAML/Properties original, incluyendo las comillas, saltos de línea y códigos de color de Minecraft si los hubiera. Solo traduce el texto entre comillas o después de los dos puntos (:)`;
-                const userQuery = input;
-                
+                outputYaml.value = "Traduciendo... por favor espera.";
+                translateButton.disabled = true;
+
+                // 1. Instrucción del sistema
+                const systemPrompt = "Por favor, traduce el siguiente archivo de configuración de un plugin de Minecraft al español. Mantén el formato YAML/Properties original, incluyendo las comillas, saltos de línea y códigos de color de Minecraft si los hubiera. Solo traduce el texto entre comillas o después de los dos puntos (:)";
+
                 // 2. Configurar API (API key vacía según instrucciones)
-                const apiKey = "AIzaSyBgCajCjRm-VYki2u1q9sXQ8GP464KYvGE"; // Pega tu clave generada de AI Studio
+                const apiKey = "AIzaSyBgCajCjRm-VYki2u1q9sXQ8GP464KYvGE"; // <--- CLAVE DE API
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-                // 3. Construir el payload
+                // 3. Payload de la solicitud
                 const payload = {
-                    contents: [{ parts: [{ text: userQuery }] }],
+                    contents: [{
+                        parts: [{ text: `Traduce el siguiente YAML al ${lang}:\n\n${yamlInput}` }]
+                    }],
                     systemInstruction: {
                         parts: [{ text: systemPrompt }]
                     },
                 };
 
-                // 4. Implementar reintentos (Backoff exponencial)
-                let response;
-                let retries = 0;
+                // 4. Lógica de reintentos (Backoff Exponencial)
                 const maxRetries = 5;
-                let delay = 1000;
+                const initialDelay = 1000;
 
-                while (retries < maxRetries) {
+                async function retryFetch(attempt) {
                     try {
-                        response = await fetch(apiUrl, {
+                        const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
 
-                        if (response.status === 429 || (response.status >= 500 && response.status <= 599)) {
-                            // Error de throttling o servidor, reintentar
-                            throw new Error(`API Error ${response.status}`);
-                        }
-                        
-                        if (!response.ok) {
-                            // Otro error, no reintentar (ej. 400 Bad Request)
-                             const errorResult = await response.json();
-                             console.error("Error en la API (no reintentable):", errorResult);
-                             throw new Error(`Error en la API (${response.status}): ${errorResult?.error?.message || response.statusText}`);
+                        if (response.status === 429) { // Too Many Requests
+                            if (attempt >= maxRetries) {
+                                throw new Error(`Se superó el número máximo de reintentos. Último error: API Rate Limit (429).`);
+                            }
+                            const delay = initialDelay * Math.pow(2, attempt);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return retryFetch(attempt + 1);
                         }
 
-                        // Si la respuesta es OK, salir del bucle
-                        break; 
+                        if (!response.ok) {
+                            const errorBody = await response.json();
+                            const errorMsg = errorBody.error?.message || `HTTP error ${response.status}`;
+                            throw new Error(`Error en la API (${response.status}): ${errorMsg}.`);
+                        }
+
+                        const result = await response.json();
+                        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                        if (text) {
+                            outputYaml.value = text;
+                            showMessage('Éxito', 'El YAML ha sido traducido.', 'success');
+                        } else {
+                            throw new Error('No se recibió texto en la respuesta de la API.');
+                        }
 
                     } catch (error) {
-                        retries++;
-                        if (retries >= maxRetries) {
-                            throw new Error(`Se superó el número máximo de reintentos. Último error: ${error.message}`);
-                        }
-                        // No loguear los reintentos en la consola como errores
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; // Backoff exponencial
+                        console.error('Error en handleTranslate:', error);
+                        outputYaml.value = `Error: ${error.message}. Por favor, inténtalo de nuevo.`;
+                        showMessage('Error', `Error al traducir: ${error.message}. Por favor, inténtalo de nuevo.`, 'error');
+                    } finally {
+                        translateButton.disabled = false;
                     }
                 }
 
-                // 5. Procesar la respuesta exitosa
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
+                retryFetch(0);
+            }
 
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    outputYAML.value = candidate.content.parts[0].text;
-                    showStatus(translatorStatus, "Traducción completada exitosamente.", true);
+            // --- Funciones del Panel de Administrador ---
+
+            function loadUserSubscriptions() {
+                adminStatus.textContent = "Cargando usuarios...";
+                pendingAdminChanges = {};
+                const collectionPath = `/artifacts/${appId}/public/data/user_subscriptions`;
+                const usersCollection = collection(db, collectionPath);
+                
+                adminUserListUnsubscribe = onSnapshot(usersCollection, (snapshot) => {
+                    if (snapshot.empty) {
+                        adminStatus.textContent = "No hay usuarios registrados.";
+                        adminUserList.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-400">No se encontraron usuarios.</td></tr>';
+                        return;
+                    }
+
+                    adminStatus.textContent = "";
+                    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    // Renderizar usuarios
+                    adminUserList.innerHTML = ""; // Limpiar lista
+                    
+                    users.forEach(user => {
+                        const tr = document.createElement('tr');
+                        tr.className = (user.id % 2 === 0) ? 'bg-gray-800' : 'bg-gray-800'; // Alternar sería con 900
+                        
+                        const emailTd = document.createElement('td');
+                        emailTd.className = "px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200";
+                        emailTd.textContent = user.email;
+                        
+                        const subTd = document.createElement('td');
+                        subTd.className = "px-6 py-4 whitespace-nowrap text-sm";
+                        
+                        const select = document.createElement('select');
+                        select.className = "bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-blue-500 focus:border-blue-500 p-2";
+                        select.dataset.userId = user.id;
+                        
+                        const options = [
+                            { value: 'None', text: 'Ninguna' },
+                            { value: 'Daily', text: 'Diaria' },
+                            { value: 'Monthly', text: 'Mensual' },
+                            { value: 'Quarterly', text: 'Trimestral' }
+                        ];
+                        
+                        options.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.value;
+                            option.textContent = opt.text;
+                            
+                            // Mantener el valor pendiente si existe
+                            if (pendingAdminChanges[user.id] === opt.value) {
+                                option.selected = true;
+                            } else if (!pendingAdminChanges[user.id] && user.subscription === opt.value) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+
+                        // Guardar el cambio pendiente
+                        select.addEventListener('change', (e) => {
+                            pendingAdminChanges[user.id] = e.target.value;
+                        });
+
+                        subTd.appendChild(select);
+
+                        // Celda de Expiración
+                        const expTd = document.createElement('td');
+                        expTd.className = "px-6 py-4 whitespace-nowrap text-sm text-gray-400";
+                        if (user.expiration_date) {
+                            const expDate = user.expiration_date.toDate();
+                            const isExpired = expDate < new Date();
+                            expTd.textContent = formatDate(expDate);
+                            if (isExpired) {
+                                expTd.innerHTML += ' <span class="text-red-400 font-bold">(¡EXPIRADA!)</span>';
+                            }
+                        } else {
+                            expTd.textContent = "N/A";
+                        }
+                        
+                        tr.appendChild(emailTd);
+                        tr.appendChild(subTd);
+                        tr.appendChild(expTd);
+                        adminUserList.appendChild(tr);
+                    });
+
+                }, (error) => {
+                    console.error("Error fetching users:", error);
+                    adminStatus.textContent = `Error al cargar usuarios: ${error.message}`;
+                    showMessage('Error', `Error fetching users: ${error.message}`, 'error');
+                });
+            }
+            
+            async function handleAdminSave() {
+                if (Object.keys(pendingAdminChanges).length === 0) {
+                    showMessage('Información', 'No hay cambios pendientes para guardar.', 'success');
+                    return;
+                }
+
+                adminSaveButton.disabled = true;
+                adminStatus.textContent = "Guardando cambios...";
+
+                const promises = Object.entries(pendingAdminChanges).map(async ([userId, newSub]) => {
+                    const userDocRef = doc(db, `/artifacts/${appId}/public/data/user_subscriptions`, userId);
+                    const expirationDate = calculateExpirationDate(newSub);
+                    
+                    try {
+                        await setDoc(userDocRef, {
+                            subscription: newSub,
+                            expiration_date: expirationDate
+                        }, { merge: true });
+                    } catch (error) {
+                        console.error(`Error updating subscription for ${userId}:`, error);
+                        throw new Error(`Error al actualizar ${userId}: ${error.message}`);
+                    }
+                });
+
+                try {
+                    await Promise.all(promises);
+                    showMessage('Éxito', 'Todas las suscripciones han sido actualizadas.', 'success');
+                    pendingAdminChanges = {}; // Limpiar cambios pendientes
+                } catch (error) {
+                    console.error('Error en handleAdminSave:', error);
+                    showMessage('Error', `Error al guardar: ${error.message}`, 'error');
+                } finally {
+                    adminSaveButton.disabled = false;
+                    adminStatus.textContent = "";
+                    // El onSnapshot refrescará la UI automáticamente
+                }
+            }
+            
+            function handleAdminBackToTranslator() {
+                if (adminUserListUnsubscribe) {
+                    adminUserListUnsubscribe(); // Detener el listener
+                }
+                adminPanel.classList.add('hidden');
+                translatorContainer.classList.remove('hidden');
+                listenToUserSubscription(auth.currentUser.uid); // Escuchar (como admin)
+            }
+
+            function calculateExpirationDate(subscription) {
+                if (subscription === 'None' || !subscription) {
+                    return null;
+                }
+                
+                const now = new Date();
+                let expirationDate = new Date(now);
+
+                if (subscription === 'Daily') {
+                    expirationDate.setDate(now.getDate() + 1);
+                } else if (subscription === 'Monthly') {
+                    expirationDate.setMonth(now.getMonth() + 1);
+                } else if (subscription === 'Quarterly') {
+                    expirationDate.setMonth(now.getMonth() + 3);
                 } else {
-                    console.warn("Respuesta de la API inesperada:", result);
-                    throw new Error("No se recibió una respuesta de texto válida de la IA.");
+                    return null;
                 }
-                // --- FIN DE LA LLAMADA REAL A LA API DE GEMINI ---
-
-            } catch (error) {
-                console.error("Error en la traducción:", error);
-                showStatus(translatorStatus, `Error al traducir: ${error.message}. Por favor, inténtalo de nuevo.`, false);
-            } finally {
-                setLoading(translateButton, false, 'Traducir YAML', 'translateSpinner');
+                
+                return Timestamp.fromDate(expirationDate);
             }
-        }
-        
-        // --- Funciones de Utilidad ---
 
-        function setLoading(button, isLoading = true, loadingText = 'Cargando...', spinnerId = null) {
-            if (!button) return;
-            const textEl = button.querySelector('span') || button;
-            const spinnerEl = spinnerId ? document.getElementById(spinnerId) : button.querySelector('div.loader');
-            if (isLoading) {
-                button.disabled = true;
-                if (textEl) textEl.textContent = loadingText;
-                if (spinnerEl) spinnerEl.classList.remove('hidden');
-            } else {
-                button.disabled = false;
-                if (textEl) textEl.textContent = button.dataset.defaultText || textEl.textContent; 
-                if (spinnerId) { 
-                     document.getElementById(spinnerId).classList.add('hidden');
-                     translateButtonText.textContent = "Traducir YAML";
+            function formatDate(date) {
+                return date.toLocaleString('es-MX', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+
+            // --- Funciones de Usuario Estándar ---
+            
+            function listenToUserSubscription(userId) {
+                const userDocRef = doc(db, `/artifacts/${appId}/public/data/user_subscriptions`, userId);
+                
+                userSubscriptionUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        let sub = data.subscription || 'None';
+                        
+                        if (data.expiration_date) {
+                            const expDate = data.expiration_date.toDate();
+                            if (expDate < new Date()) {
+                                sub = 'None'; // La suscripción expiró
+                                
+                                // Limpiar el registro caducado en segundo plano
+                                setDoc(userDocRef, { 
+                                    subscription: 'None', 
+                                    expiration_date: null 
+                                }, { merge: true });
+                            }
+                        }
+                        
+                        currentUserSubscription = sub;
+                    } else {
+                        // El registro no existe, crearlo (debería pasar en el registro)
+                        ensureUserRecordExists(auth.currentUser);
+                        currentUserSubscription = 'None';
+                    }
+                }, (error) => {
+                    console.error("Error listening to user subscription:", error);
+                    showMessage('Error', 'No se pudo verificar tu suscripción.', 'error');
+                    currentUserSubscription = 'None';
+                });
+            }
+
+            async function ensureUserRecordExists(user) {
+                if (!user) return;
+                const userDocRef = doc(db, `/artifacts/${appId}/public/data/user_subscriptions`, user.uid);
+                
+                try {
+                    const docSnap = await getDoc(userDocRef);
+                    if (!docSnap.exists()) {
+                        await setDoc(userDocRef, {
+                            email: user.email,
+                            subscription: 'None',
+                            expiration_date: null,
+                            created_at: Timestamp.now()
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error ensuring user record exists:", error);
+                    // Este error (permissions) es esperado si las reglas no están seteadas
                 }
-                if(spinnerEl && !spinnerId) spinnerEl.classList.add('hidden');
             }
-            if (isLoading && !button.dataset.defaultText) {
-                button.dataset.defaultText = textEl.textContent;
-            }
-        }
 
-        function showStatus(element, message, isSuccess = false) {
-            if (!element) return;
-            element.classList.remove('text-green-400', 'text-red-400', 'text-gray-400');
-            const prefixMatch = message.match(/^(<strong>.*?:<\/strong>\s*)/);
-            let prefix = '';
-            let mainMessage = message;
-            if (prefixMatch) {
-                prefix = prefixMatch[1];
-                mainMessage = message.substring(prefix.length);
-            }
-            if (isSuccess) {
-                element.classList.add('text-green-400');
-                if (!prefix) prefix = '<strong>Éxito:</strong> ';
-            } else {
-                element.classList.add('text-red-400');
-                if (!prefix) prefix = '<strong>Error:</strong> ';
-            }
-            element.innerHTML = `${prefix}${mainMessage}`;
-            element.classList.remove('hidden');
-        }
 
-        function clearStatus(element) {
-            if (!element) return;
-            element.innerHTML = '';
-            element.classList.add('hidden');
-        }
+            // --- Funciones de Autenticación (Login/Registro/Logout) ---
 
-        function getFirebaseAuthErrorMessage(errorCode) {
-            switch (errorCode) {
-                case 'auth/invalid-email':
-                    return 'El formato del correo electrónico no es válido.';
-                case 'auth/user-disabled':
-                    return 'Este usuario ha sido deshabilitado.';
-                case 'auth/user-not-found':
-                    return 'No se encontró ningún usuario con este correo electrónico.';
-                case 'auth/wrong-password':
-                    return 'La contraseña es incorrecta.';
-                case 'auth/email-already-in-use':
-                    return 'Este correo electrónico ya está en uso.';
-                case 'auth/weak-password':
-                    return 'La contraseña es demasiado débil (debe tener al menos 6 caracteres).';
-                case 'auth/invalid-credential':
-                    return 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.';
-                default:
-                    return 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.';
+            async function handleLogin(e) {
+                e.preventDefault();
+                const email = loginEmail.value;
+                const password = loginPassword.value;
+                
+                if (!email || !password) {
+                    showMessage('Error', 'Por favor, ingresa correo y contraseña.', 'error');
+                    return;
+                }
+
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showMessage('Éxito', 'Inicio de sesión exitoso.', 'success');
+                    loginForm.reset();
+                } catch (error) {
+                    console.error('Error al iniciar sesión:', error.code);
+                    let msg = 'Error al iniciar sesión. Verifica tus credenciales.';
+                    if (error.code === 'auth/invalid-credential') {
+                        msg = 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.';
+                    }
+                    showMessage('Error', msg, 'error');
+                }
             }
-        }
 
-        function unsubscribeListeners() {
-            if (userSubscriptionsListener) {
-                userSubscriptionsListener(); 
-                userSubscriptionsListener = null;
+            async function handleRegister(e) {
+                e.preventDefault();
+                const email = registerEmail.value;
+                const password = registerPassword.value;
+
+                if (!email || !password) {
+                    showMessage('Error', 'Por favor, ingresa correo y contraseña.', 'error');
+                    return;
+                }
+
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    // Crear registro en Firestore
+                    await ensureUserRecordExists(userCredential.user);
+                    showMessage('Éxito', 'Cuenta registrada exitosamente.', 'success');
+                    registerForm.reset();
+                } catch (error) {
+                    console.error('Error al registrarse:', error.code);
+                    let msg = 'Error al registrar la cuenta.';
+                    if (error.code === 'auth/email-already-in-use') {
+                        msg = 'Este correo electrónico ya está en uso.';
+                    } else if (error.code === 'auth/weak-password') {
+                        msg = 'La contraseña debe tener al menos 6 caracteres.';
+                    }
+                    showMessage('Error', msg, 'error');
+                }
             }
-            if (currentUserSubscriptionListener) {
-                currentUserSubscriptionListener(); 
-                currentUserSubscriptionListener = null;
+
+            async function handleLogout() {
+                try {
+                    if (adminUserListUnsubscribe) adminUserListUnsubscribe();
+                    if (userSubscriptionUnsubscribe) userSubscriptionUnsubscribe();
+                    
+                    await signOut(auth);
+                    showMessage('Éxito', 'Has cerrado sesión.', 'success');
+                } catch (error) {
+                    console.error('Error al cerrar sesión:', error);
+                    showMessage('Error', 'Error al cerrar sesión.', 'error');
+                }
             }
-        }
 
-        const mockUsers = [
-            { id: 'mock1', email: 'usuario.ejemplo1@gmail.com', subscription: 'None', expiration_date: null },
-            { id: 'mock2', email: 'usuario.ejemplo2@dominio.com', subscription: 'Monthly', expiration_date: { seconds: Math.floor((new Date().setDate(new Date().getDate() + 15)) / 1000) } },
-            { id: 'mock3', email: 'usuario.ejemplo3@test.es', subscription: 'Daily', expiration_date: { seconds: Math.floor((new Date().setDate(new Date().getDate() - 1)) / 1000) } } 
-        ];
+            function toggleAuthMode(e, mode) {
+                e.preventDefault();
+                if (mode === 'register') {
+                    loginForm.classList.add('hidden');
+                    registerForm.classList.remove('hidden');
+                    noAuthContent.classList.add('hidden'); // Ocultar planes
+                } else {
+                    loginForm.classList.remove('hidden');
+                    registerForm.classList.add('hidden');
+                    noAuthContent.classList.remove('hidden'); // Mostrar planes
+                }
+            }
 
+            // --- Funciones Utilitarias (Mensajes, Archivos) ---
+
+            function showMessage(title, content, type = 'success') {
+                const titleEl = document.getElementById('messageTitle');
+                const contentEl = document.getElementById('messageContent');
+                
+                titleEl.textContent = title;
+                contentEl.textContent = content;
+
+                messageBox.classList.remove('hidden', 'border-red-500', 'border-green-500', 'border-blue-500');
+                
+                if (type === 'error') {
+                    messageBox.classList.add('border-red-500');
+                    titleEl.classList.remove('text-green-400', 'text-blue-400');
+                    titleEl.classList.add('text-red-400');
+                } else if (type === 'success') {
+                    messageBox.classList.add('border-green-500');
+                    titleEl.classList.remove('text-red-400', 'text-blue-400');
+                    titleEl.classList.add('text-green-400');
+                } else {
+                    messageBox.classList.add('border-blue-500');
+                    titleEl.classList.remove('text-red-400', 'text-green-400');
+                    titleEl.classList.add('text-blue-400');
+                }
+
+                messageBox.classList.remove('hidden');
+
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 4000);
+            }
+
+            function handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                if (!file.name.endsWith('.yaml') && !file.name.endsWith('.yml')) {
+                    showMessage('Error', 'Por favor, selecciona un archivo .yaml o .yml', 'error');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    inputYaml.value = e.target.result;
+                    showMessage('Éxito', 'Archivo cargado correctamente.', 'success');
+                };
+                reader.onerror = () => {
+                    showMessage('Error', 'No se pudo leer el archivo.', 'error');
+                };
+                reader.readAsText(file);
+                
+                // Resetear el input para permitir cargar el mismo archivo de nuevo
+                event.target.value = null;
+            }
+
+            function handleDownload() {
+                const text = outputYaml.value;
+                if (!text || text === "Traduciendo... por favor espera.") {
+                    showMessage('Error', 'No hay contenido traducido para descargar.', 'error');
+                    return;
+                }
+                
+                const element = document.createElement('a');
+                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+                element.setAttribute('download', 'traduccion.yaml');
+                
+                element.style.display = 'none';
+                document.body.appendChild(element);
+                
+                element.click();
+                
+                document.body.removeChild(element);
+                showMessage('Éxito', 'Descarga iniciada.', 'success');
+            }
+
+
+            // --- Asignación de Event Listeners ---
+            
+            loginButton.addEventListener('click', handleLogin);
+            registerButton.addEventListener('click', handleRegister);
+            logoutButton.addEventListener('click', handleLogout);
+            
+            toggleToRegister.addEventListener('click', (e) => toggleAuthMode(e, 'register'));
+            toggleToLogin.addEventListener('click', (e) => toggleAuthMode(e, 'login'));
+            
+            translateButton.addEventListener('click', handleTranslate);
+            
+            uploadButton.addEventListener('click', () => yamlFileInput.click());
+            yamlFileInput.addEventListener('change', handleFileUpload);
+            downloadButton.addEventListener('click', handleDownload);
+            
+            adminSaveButton.addEventListener('click', handleAdminSave);
+            adminBackButton.addEventListener('click', handleAdminBackToTranslator);
+        });
+    
     </script>
 </body>
 </html>
